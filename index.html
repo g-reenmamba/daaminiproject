@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dijkstra's Algorithm Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            background: #667eea;
+            color: white;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        input[type="range"] {
+            width: 120px;
+        }
+
+        .status {
+            width: 100%;
+            padding: 10px;
+            background: #e8f4f8;
+            border-left: 4px solid #667eea;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: white;
+            height: 500px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .info-panel {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 2px solid #e0e0e0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .info-panel h3 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .info-text {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            padding: 15px 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .legend-circle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Dijkstra's Algorithm Visualizer</h1>
+            <p class="subtitle">Interactive graph pathfinding visualization</p>
+        </div>
+
+        <div class="controls">
+            <button id="addNodeBtn">Add Node</button>
+            <button id="addEdgeBtn">Add Edge</button>
+            <button id="setStartBtn">Set Start</button>
+            <button id="setEndBtn">Set End</button>
+            <button id="runBtn">Run Dijkstra</button>
+            <button id="clearBtn">Clear All</button>
+            
+            <div class="speed-control">
+                <label>Speed:</label>
+                <input type="range" id="speedSlider" min="0.1" max="3" step="0.1" value="1">
+                <span id="speedValue">1.0x</span>
+            </div>
+
+            <div class="status" id="status">Click 'Add Node' and click on canvas to add nodes</div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #E0E0E0;"></div>
+                <span>Unvisited</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #90EE90;"></div>
+                <span>Start Node</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #FF6B6B;"></div>
+                <span>End Node</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #FFD700;"></div>
+                <span>Current</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #87CEEB;"></div>
+                <span>Visited</span>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h3>Algorithm Info</h3>
+            <div class="info-text" id="infoText"></div>
+        </div>
+    </div>
+
+    <script>
+        class DijkstraVisualizer {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.setupCanvas();
+
+                this.nodes = new Map();
+                this.edges = [];
+                this.graph = new Map();
+                this.nodeCounter = 0;
+                this.startNode = null;
+                this.endNode = null;
+                this.selectedNode = null;
+                this.draggingEdge = false;
+                this.mode = null;
+                this.algorithmRunning = false;
+                this.speed = 1.0;
+
+                this.distances = new Map();
+                this.previous = new Map();
+                this.visited = new Set();
+                this.currentNode = null;
+
+                this.colors = {
+                    unvisited: '#E0E0E0',
+                    current: '#FFD700',
+                    visited: '#87CEEB',
+                    start: '#90EE90',
+                    end: '#FF6B6B',
+                    path: '#FF4444',
+                    edge: '#808080'
+                };
+
+                this.setupEventListeners();
+                this.draw();
+            }
+
+            setupCanvas() {
+                const rect = this.canvas.parentElement.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+            }
+
+            setupEventListeners() {
+                document.getElementById('addNodeBtn').addEventListener('click', () => this.setMode('add_node'));
+                document.getElementById('addEdgeBtn').addEventListener('click', () => this.setMode('add_edge'));
+                document.getElementById('setStartBtn').addEventListener('click', () => this.setMode('set_start'));
+                document.getElementById('setEndBtn').addEventListener('click', () => this.setMode('set_end'));
+                document.getElementById('runBtn').addEventListener('click', () => this.runDijkstra());
+                document.getElementById('clearBtn').addEventListener('click', () => this.clearAll());
+
+                const speedSlider = document.getElementById('speedSlider');
+                speedSlider.addEventListener('input', (e) => {
+                    this.speed = parseFloat(e.target.value);
+                    document.getElementById('speedValue').textContent = this.speed.toFixed(1) + 'x';
+                });
+
+                this.canvas.addEventListener('click', (e) => this.onCanvasClick(e));
+                this.canvas.addEventListener('mousemove', (e) => this.onCanvasMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.onCanvasRelease(e));
+
+                window.addEventListener('resize', () => {
+                    this.setupCanvas();
+                    this.draw();
+                });
+            }
+
+            setMode(mode) {
+                this.mode = mode;
+                const messages = {
+                    'add_node': 'Click on canvas to add nodes',
+                    'add_edge': 'Click and drag between nodes to add edges',
+                    'set_start': 'Click on a node to set as start',
+                    'set_end': 'Click on a node to set as end'
+                };
+                document.getElementById('status').textContent = messages[mode];
+            }
+
+            getNodeAtPosition(x, y) {
+                for (let [id, pos] of this.nodes) {
+                    const dist = Math.sqrt((x - pos.x) ** 2 + (y - pos.y) ** 2);
+                    if (dist <= 20) return id;
+                }
+                return null;
+            }
+
+            onCanvasClick(e) {
+                if (this.algorithmRunning) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const clickedNode = this.getNodeAtPosition(x, y);
+
+                if (this.mode === 'add_node' && !clickedNode) {
+                    this.addNode(x, y);
+                } else if (this.mode === 'add_edge' && clickedNode) {
+                    this.selectedNode = clickedNode;
+                    this.draggingEdge = true;
+                } else if (this.mode === 'set_start' && clickedNode) {
+                    this.startNode = clickedNode;
+                    this.updateStatus(`Start node set to ${clickedNode}`);
+                    this.draw();
+                } else if (this.mode === 'set_end' && clickedNode) {
+                    this.endNode = clickedNode;
+                    this.updateStatus(`End node set to ${clickedNode}`);
+                    this.draw();
+                }
+            }
+
+            onCanvasMove(e) {
+                if (this.draggingEdge && this.selectedNode) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    this.tempEdgeEnd = {
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top
+                    };
+                    this.draw();
+                }
+            }
+
+            onCanvasRelease(e) {
+                if (this.draggingEdge) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const targetNode = this.getNodeAtPosition(x, y);
+
+                    if (targetNode && targetNode !== this.selectedNode) {
+                        this.addEdge(this.selectedNode, targetNode);
+                    }
+
+                    this.draggingEdge = false;
+                    this.selectedNode = null;
+                    this.tempEdgeEnd = null;
+                    this.draw();
+                }
+            }
+
+            addNode(x, y) {
+                const id = String.fromCharCode(65 + this.nodeCounter);
+                this.nodeCounter++;
+                this.nodes.set(id, { x, y });
+                this.graph.set(id, []);
+                this.updateStatus(`Added node ${id}`);
+                this.draw();
+            }
+
+            addEdge(node1, node2) {
+                const exists = this.edges.some(e => 
+                    (e.from === node1 && e.to === node2) || (e.from === node2 && e.to === node1)
+                );
+
+                if (exists) {
+                    alert('Edge already exists!');
+                    return;
+                }
+
+                const weight = prompt(`Enter weight for edge ${node1}-${node2}:`, '10');
+                if (weight !== null && weight !== '') {
+                    const w = parseFloat(weight);
+                    if (w > 0) {
+                        this.edges.push({ from: node1, to: node2, weight: w });
+                        this.graph.get(node1).push({ node: node2, weight: w });
+                        this.graph.get(node2).push({ node: node1, weight: w });
+                        this.updateStatus(`Added edge ${node1}-${node2} with weight ${w}`);
+                        this.draw();
+                    }
+                }
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw edges
+                this.edges.forEach(edge => {
+                    const pos1 = this.nodes.get(edge.from);
+                    const pos2 = this.nodes.get(edge.to);
+                    
+                    this.ctx.strokeStyle = this.colors.edge;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(pos1.x, pos1.y);
+                    this.ctx.lineTo(pos2.x, pos2.y);
+                    this.ctx.stroke();
+
+                    // Draw weight
+                    const midX = (pos1.x + pos2.x) / 2;
+                    const midY = (pos1.y + pos2.y) / 2;
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.fillRect(midX - 15, midY - 10, 30, 20);
+                    this.ctx.fillStyle = 'black';
+                    this.ctx.font = 'bold 12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText(edge.weight.toString(), midX, midY);
+                });
+
+                // Draw temporary edge while dragging
+                if (this.draggingEdge && this.tempEdgeEnd) {
+                    const pos = this.nodes.get(this.selectedNode);
+                    this.ctx.strokeStyle = 'red';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(pos.x, pos.y);
+                    this.ctx.lineTo(this.tempEdgeEnd.x, this.tempEdgeEnd.y);
+                    this.ctx.stroke();
+                }
+
+                // Draw nodes
+                this.nodes.forEach((pos, id) => {
+                    let color = this.colors.unvisited;
+
+                    if (id === this.startNode) color = this.colors.start;
+                    else if (id === this.endNode) color = this.colors.end;
+                    else if (id === this.currentNode) color = this.colors.current;
+                    else if (this.visited.has(id)) color = this.colors.visited;
+
+                    // Node circle
+                    this.ctx.fillStyle = color;
+                    this.ctx.strokeStyle = 'black';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.stroke();
+
+                    // Node label
+                    this.ctx.fillStyle = 'black';
+                    this.ctx.font = 'bold 16px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText(id, pos.x, pos.y);
+
+                    // Distance label
+                    if (this.distances.has(id)) {
+                        const dist = this.distances.get(id);
+                        const distText = dist === Infinity ? 'd=∞' : `d=${dist}`;
+                        this.ctx.fillStyle = 'red';
+                        this.ctx.font = '11px Arial';
+                        this.ctx.fillText(distText, pos.x, pos.y - 35);
+                    }
+                });
+            }
+
+            async runDijkstra() {
+                if (!this.startNode || !this.endNode) {
+                    alert('Please set both start and end nodes!');
+                    return;
+                }
+
+                if (this.algorithmRunning) return;
+
+                this.algorithmRunning = true;
+                this.distances.clear();
+                this.previous.clear();
+                this.visited.clear();
+                this.currentNode = null;
+
+                // Initialize distances
+                for (let node of this.nodes.keys()) {
+                    this.distances.set(node, Infinity);
+                    this.previous.set(node, null);
+                }
+                this.distances.set(this.startNode, 0);
+
+                const pq = [[0, this.startNode]];
+                let step = 1;
+
+                this.addInfo(`Starting Dijkstra's algorithm from ${this.startNode} to ${this.endNode}\n\n`);
+
+                while (pq.length > 0) {
+                    pq.sort((a, b) => a[0] - b[0]);
+                    const [currentDist, current] = pq.shift();
+
+                    if (this.visited.has(current)) continue;
+
+                    this.currentNode = current;
+                    this.visited.add(current);
+                    this.draw();
+
+                    this.addInfo(`Step ${step}: Visiting node ${current} (distance: ${currentDist})\n`);
+
+                    if (current === this.endNode) {
+                        this.addInfo(`Reached destination! Shortest path found.\n`);
+                        break;
+                    }
+
+                    const neighbors = this.graph.get(current);
+                    for (let { node: neighbor, weight } of neighbors) {
+                        if (!this.visited.has(neighbor)) {
+                            const newDist = currentDist + weight;
+
+                            if (newDist < this.distances.get(neighbor)) {
+                                this.distances.set(neighbor, newDist);
+                                this.previous.set(neighbor, current);
+                                pq.push([newDist, neighbor]);
+
+                                this.addInfo(`  Updated ${neighbor}: distance = ${newDist} (via ${current})\n`);
+                            }
+                        }
+                    }
+
+                    step++;
+                    await this.sleep(2000 / this.speed);
+                }
+
+                this.showShortestPath();
+                this.algorithmRunning = false;
+                this.currentNode = null;
+                this.draw();
+            }
+
+            showShortestPath() {
+                if (!this.distances.has(this.endNode) || this.distances.get(this.endNode) === Infinity) {
+                    this.addInfo('No path found!\n');
+                    return;
+                }
+
+                const path = [];
+                let current = this.endNode;
+                while (current !== null) {
+                    path.unshift(current);
+                    current = this.previous.get(current);
+                }
+
+                this.addInfo(`\nShortest path: ${path.join(' → ')}\n`);
+                this.addInfo(`Total distance: ${this.distances.get(this.endNode)}\n`);
+
+                // Draw path
+                for (let i = 0; i < path.length - 1; i++) {
+                    const pos1 = this.nodes.get(path[i]);
+                    const pos2 = this.nodes.get(path[i + 1]);
+
+                    this.ctx.strokeStyle = this.colors.path;
+                    this.ctx.lineWidth = 4;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(pos1.x, pos1.y);
+                    this.ctx.lineTo(pos2.x, pos2.y);
+                    this.ctx.stroke();
+                }
+            }
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            addInfo(text) {
+                const infoText = document.getElementById('infoText');
+                infoText.textContent += text;
+                infoText.parentElement.scrollTop = infoText.parentElement.scrollHeight;
+            }
+
+            updateStatus(text) {
+                document.getElementById('status').textContent = text;
+            }
+
+            clearAll() {
+                if (this.algorithmRunning) return;
+
+                this.nodes.clear();
+                this.edges = [];
+                this.graph.clear();
+                this.nodeCounter = 0;
+                this.startNode = null;
+                this.endNode = null;
+                this.distances.clear();
+                this.previous.clear();
+                this.visited.clear();
+                this.currentNode = null;
+
+                document.getElementById('infoText').textContent = '';
+                this.updateStatus("Graph cleared. Click 'Add Node' to start.");
+                this.draw();
+            }
+        }
+
+        // Initialize the visualizer
+        window.addEventListener('DOMContentLoaded', () => {
+            new DijkstraVisualizer();
+        });
+    </script>
+</body>
+</html>
